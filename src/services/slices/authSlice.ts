@@ -1,9 +1,11 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import {
+  forgotPasswordApi,
   getUserApi,
   loginUserApi,
   logoutApi,
   registerUserApi,
+  resetPasswordApi,
   TLoginData,
   TRegisterData,
   updateUserApi
@@ -19,6 +21,7 @@ type TAuthState = {
   request: boolean;
   error: string | null;
   updateUserError: string | null;
+  passwordResetError: string | null;
 };
 
 type TAuthData = {
@@ -33,7 +36,8 @@ const initialState: TAuthState = {
   isAuthenticated: false,
   request: false,
   error: null,
-  updateUserError: null
+  updateUserError: null,
+  passwordResetError: null
 };
 
 const getErrorMessage = (error: unknown) => {
@@ -135,6 +139,30 @@ export const logoutUser = createAsyncThunk<void, void, { rejectValue: string }>(
   }
 );
 
+export const forgotPassword = createAsyncThunk<
+  void,
+  { email: string },
+  { rejectValue: string }
+>('auth/forgotPassword', async (data, { rejectWithValue }) => {
+  try {
+    await forgotPasswordApi(data);
+  } catch (error) {
+    return rejectWithValue(getErrorMessage(error));
+  }
+});
+
+export const resetPassword = createAsyncThunk<
+  void,
+  { password: string; token: string },
+  { rejectValue: string }
+>('auth/resetPassword', async (data, { rejectWithValue }) => {
+  try {
+    await resetPasswordApi(data);
+  } catch (error) {
+    return rejectWithValue(getErrorMessage(error));
+  }
+});
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -142,6 +170,7 @@ const authSlice = createSlice({
     clearAuthError: (state) => {
       state.error = null;
       state.updateUserError = null;
+      state.passwordResetError = null;
     }
   },
   extraReducers: (builder) => {
@@ -220,6 +249,30 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.isAuthChecked = true;
         state.error = action.payload || 'Не удалось выйти';
+      })
+      .addCase(forgotPassword.pending, (state) => {
+        state.request = true;
+        state.passwordResetError = null;
+      })
+      .addCase(forgotPassword.fulfilled, (state) => {
+        state.request = false;
+      })
+      .addCase(forgotPassword.rejected, (state, action) => {
+        state.request = false;
+        state.passwordResetError =
+          action.payload || 'Не удалось отправить письмо восстановления пароля';
+      })
+      .addCase(resetPassword.pending, (state) => {
+        state.request = true;
+        state.passwordResetError = null;
+      })
+      .addCase(resetPassword.fulfilled, (state) => {
+        state.request = false;
+      })
+      .addCase(resetPassword.rejected, (state, action) => {
+        state.request = false;
+        state.passwordResetError =
+          action.payload || 'Не удалось изменить пароль';
       });
   }
 });
@@ -236,3 +289,5 @@ export const selectAuthRequest = (state: RootState) => state.auth.request;
 export const selectAuthError = (state: RootState) => state.auth.error;
 export const selectUpdateUserError = (state: RootState) =>
   state.auth.updateUserError;
+export const selectPasswordResetError = (state: RootState) =>
+  state.auth.passwordResetError;
