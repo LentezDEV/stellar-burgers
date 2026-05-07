@@ -12,6 +12,7 @@ import {
   clearOrderModalData,
   createOrder,
   fetchFeeds,
+  fetchProfileOrders,
   selectOrderModalData,
   selectOrderRequest
 } from '../../services/slices/ordersSlice';
@@ -44,6 +45,7 @@ export const BurgerConstructor: FC = () => {
       .then(() => {
         dispatch(clearConstructor());
         dispatch(fetchFeeds());
+        dispatch(fetchProfileOrders());
       })
       .catch(() => {});
   };

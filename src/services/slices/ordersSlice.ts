@@ -1,5 +1,10 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { getFeedsApi, getOrderByNumberApi, orderBurgerApi } from '@api';
+import {
+  getFeedsApi,
+  getOrderByNumberApi,
+  getOrdersApi,
+  orderBurgerApi
+} from '@api';
 import { TOrder } from '@utils-types';
 import type { RootState } from '../store';
 
@@ -15,9 +20,11 @@ type TOrderModalData = {
 
 type TOrdersState = {
   feed: TFeedState;
+  profileOrders: TOrder[];
   currentOrder: TOrder | null;
   orderModalData: TOrderModalData | null;
   isFeedLoading: boolean;
+  isProfileOrdersLoading: boolean;
   isOrderLoading: boolean;
   orderRequest: boolean;
   error: string | null;
@@ -29,9 +36,11 @@ const initialState: TOrdersState = {
     total: 0,
     totalToday: 0
   },
+  profileOrders: [],
   currentOrder: null,
   orderModalData: null,
   isFeedLoading: false,
+  isProfileOrdersLoading: false,
   isOrderLoading: false,
   orderRequest: false,
   error: null
@@ -74,6 +83,18 @@ export const fetchOrderByNumber = createAsyncThunk<
     }
 
     return rejectWithValue('Заказ не найден');
+  } catch (error) {
+    return rejectWithValue(getErrorMessage(error));
+  }
+});
+
+export const fetchProfileOrders = createAsyncThunk<
+  TOrder[],
+  void,
+  { rejectValue: string }
+>('orders/fetchProfileOrders', async (_, { rejectWithValue }) => {
+  try {
+    return await getOrdersApi();
   } catch (error) {
     return rejectWithValue(getErrorMessage(error));
   }
@@ -129,6 +150,18 @@ const ordersSlice = createSlice({
         state.isOrderLoading = false;
         state.error = action.payload || 'Не удалось загрузить заказ';
       })
+      .addCase(fetchProfileOrders.pending, (state) => {
+        state.isProfileOrdersLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchProfileOrders.fulfilled, (state, action) => {
+        state.isProfileOrdersLoading = false;
+        state.profileOrders = action.payload;
+      })
+      .addCase(fetchProfileOrders.rejected, (state, action) => {
+        state.isProfileOrdersLoading = false;
+        state.error = action.payload || 'Не удалось загрузить историю заказов';
+      })
       .addCase(createOrder.pending, (state) => {
         state.orderRequest = true;
         state.orderModalData = null;
@@ -149,9 +182,13 @@ export const { clearOrderModalData } = ordersSlice.actions;
 export const ordersReducer = ordersSlice.reducer;
 
 export const selectFeedOrders = (state: RootState) => state.orders.feed.orders;
+export const selectProfileOrders = (state: RootState) =>
+  state.orders.profileOrders;
 export const selectFeed = (state: RootState) => state.orders.feed;
 export const selectOrdersIsFeedLoading = (state: RootState) =>
   state.orders.isFeedLoading;
+export const selectOrdersIsProfileOrdersLoading = (state: RootState) =>
+  state.orders.isProfileOrdersLoading;
 export const selectOrdersIsOrderLoading = (state: RootState) =>
   state.orders.isOrderLoading;
 export const selectOrdersError = (state: RootState) => state.orders.error;
@@ -160,10 +197,14 @@ export const selectOrderRequest = (state: RootState) =>
 export const selectOrderModalData = (state: RootState) =>
   state.orders.orderModalData;
 export const selectOrderByNumber = (number?: number) => (state: RootState) => {
+  const profileOrder = state.orders.profileOrders.find(
+    (order) => order.number === number
+  );
   const feedOrder = state.orders.feed.orders.find(
     (order) => order.number === number
   );
 
+  if (profileOrder) return profileOrder;
   if (feedOrder) return feedOrder;
   if (state.orders.currentOrder?.number === number) {
     return state.orders.currentOrder;
