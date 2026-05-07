@@ -1,23 +1,32 @@
-import { FC, useMemo } from 'react';
+import { FC, useEffect, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import { Preloader } from '../ui/preloader';
 import { OrderInfoUI } from '../ui/order-info';
 import { TIngredient } from '@utils-types';
+import { useDispatch, useSelector } from '../../services/store';
+import { selectIngredients } from '../../services/slices/ingredientsSlice';
+import {
+  fetchOrderByNumber,
+  selectOrderByNumber,
+  selectOrdersError,
+  selectOrdersIsOrderLoading
+} from '../../services/slices/ordersSlice';
 
 export const OrderInfo: FC = () => {
-  /** TODO: взять переменные orderData и ingredients из стора */
-  const orderData = {
-    createdAt: '',
-    ingredients: [],
-    _id: '',
-    status: '',
-    name: '',
-    updatedAt: 'string',
-    number: 0
-  };
+  const dispatch = useDispatch();
+  const { number } = useParams();
+  const orderNumber = number ? Number(number) : undefined;
+  const orderData = useSelector(selectOrderByNumber(orderNumber));
+  const ingredients = useSelector(selectIngredients);
+  const isLoading = useSelector(selectOrdersIsOrderLoading);
+  const error = useSelector(selectOrdersError);
 
-  const ingredients: TIngredient[] = [];
+  useEffect(() => {
+    if (orderNumber && !orderData) {
+      dispatch(fetchOrderByNumber(orderNumber));
+    }
+  }, [dispatch, orderData, orderNumber]);
 
-  /* Готовим данные для отображения */
   const orderInfo = useMemo(() => {
     if (!orderData || !ingredients.length) return null;
 
@@ -59,7 +68,19 @@ export const OrderInfo: FC = () => {
     };
   }, [orderData, ingredients]);
 
-  if (!orderInfo) {
+  if (!orderNumber || Number.isNaN(orderNumber)) {
+    return (
+      <div className='text text_type_main-medium pt-4'>
+        Некорректный номер заказа
+      </div>
+    );
+  }
+
+  if (error && !orderInfo) {
+    return <div className='text text_type_main-medium pt-4'>{error}</div>;
+  }
+
+  if (isLoading || !orderInfo) {
     return <Preloader />;
   }
 
