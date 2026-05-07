@@ -12,35 +12,53 @@ import {
 import '../../index.css';
 import styles from './app.module.css';
 
-import {
-  AppHeader,
-  IngredientDetails,
-  Modal,
-  OrderInfo
-} from '@components';
+import { AppHeader, IngredientDetails, Modal, OrderInfo } from '@components';
 import { FC, ReactElement } from 'react';
+import { useEffect } from 'react';
 import {
   BrowserRouter,
+  Navigate,
   Route,
   Routes,
   useLocation,
   useNavigate
 } from 'react-router-dom';
+import { useDispatch } from '../../services/store';
+import { fetchIngredients } from '../../services/slices/ingredientsSlice';
 
 type TProtectedRouteProps = {
   onlyUnAuth?: boolean;
   children: ReactElement;
 };
 
-const ProtectedRoute: FC<TProtectedRouteProps> = ({ children }) => {
-  // TODO: connect auth check from Redux store.
+const ProtectedRoute: FC<TProtectedRouteProps> = ({
+  onlyUnAuth = false,
+  children
+}) => {
+  const location = useLocation();
+  const isAuth = false;
+  const from = location.state?.from || '/';
+
+  if (onlyUnAuth && isAuth) {
+    return <Navigate to={from} replace />;
+  }
+
+  if (!onlyUnAuth && !isAuth) {
+    return <Navigate to='/login' replace state={{ from: location }} />;
+  }
+
   return children;
 };
 
 const AppRoutes: FC = () => {
+  const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
   const background = location.state?.background;
+
+  useEffect(() => {
+    dispatch(fetchIngredients());
+  }, [dispatch]);
 
   const closeModal = () => {
     navigate(-1);
