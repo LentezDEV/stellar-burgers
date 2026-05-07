@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { getFeedsApi, getOrderByNumberApi } from '@api';
+import { getFeedsApi, getOrderByNumberApi, orderBurgerApi } from '@api';
 import { TOrder } from '@utils-types';
 import type { RootState } from '../store';
 
@@ -9,11 +9,17 @@ type TFeedState = {
   totalToday: number;
 };
 
+type TOrderModalData = {
+  number: number;
+};
+
 type TOrdersState = {
   feed: TFeedState;
   currentOrder: TOrder | null;
+  orderModalData: TOrderModalData | null;
   isFeedLoading: boolean;
   isOrderLoading: boolean;
+  orderRequest: boolean;
   error: string | null;
 };
 
@@ -24,8 +30,10 @@ const initialState: TOrdersState = {
     totalToday: 0
   },
   currentOrder: null,
+  orderModalData: null,
   isFeedLoading: false,
   isOrderLoading: false,
+  orderRequest: false,
   error: null
 };
 
@@ -71,10 +79,30 @@ export const fetchOrderByNumber = createAsyncThunk<
   }
 });
 
+export const createOrder = createAsyncThunk<
+  TOrderModalData,
+  string[],
+  { rejectValue: string }
+>('orders/createOrder', async (ingredients, { rejectWithValue }) => {
+  try {
+    const data = await orderBurgerApi(ingredients);
+    return {
+      number: data.order.number
+    };
+  } catch (error) {
+    return rejectWithValue(getErrorMessage(error));
+  }
+});
+
 const ordersSlice = createSlice({
   name: 'orders',
   initialState,
-  reducers: {},
+  reducers: {
+    clearOrderModalData: (state) => {
+      state.orderModalData = null;
+      state.error = null;
+    }
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchFeeds.pending, (state) => {
@@ -100,10 +128,24 @@ const ordersSlice = createSlice({
       .addCase(fetchOrderByNumber.rejected, (state, action) => {
         state.isOrderLoading = false;
         state.error = action.payload || 'Не удалось загрузить заказ';
+      })
+      .addCase(createOrder.pending, (state) => {
+        state.orderRequest = true;
+        state.orderModalData = null;
+        state.error = null;
+      })
+      .addCase(createOrder.fulfilled, (state, action) => {
+        state.orderRequest = false;
+        state.orderModalData = action.payload;
+      })
+      .addCase(createOrder.rejected, (state, action) => {
+        state.orderRequest = false;
+        state.error = action.payload || 'Не удалось оформить заказ';
       });
   }
 });
 
+export const { clearOrderModalData } = ordersSlice.actions;
 export const ordersReducer = ordersSlice.reducer;
 
 export const selectFeedOrders = (state: RootState) => state.orders.feed.orders;
@@ -113,6 +155,10 @@ export const selectOrdersIsFeedLoading = (state: RootState) =>
 export const selectOrdersIsOrderLoading = (state: RootState) =>
   state.orders.isOrderLoading;
 export const selectOrdersError = (state: RootState) => state.orders.error;
+export const selectOrderRequest = (state: RootState) =>
+  state.orders.orderRequest;
+export const selectOrderModalData = (state: RootState) =>
+  state.orders.orderModalData;
 export const selectOrderByNumber = (number?: number) => (state: RootState) => {
   const feedOrder = state.orders.feed.orders.find(
     (order) => order.number === number
