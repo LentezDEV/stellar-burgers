@@ -13,6 +13,7 @@ import '../../index.css';
 import styles from './app.module.css';
 
 import { AppHeader, IngredientDetails, Modal, OrderInfo } from '@components';
+import { Preloader } from '@ui';
 import { FC, ReactElement } from 'react';
 import { useEffect } from 'react';
 import {
@@ -23,7 +24,12 @@ import {
   useLocation,
   useNavigate
 } from 'react-router-dom';
-import { useDispatch } from '../../services/store';
+import { useDispatch, useSelector } from '../../services/store';
+import {
+  checkUserAuth,
+  selectIsAuthChecked,
+  selectIsAuthenticated
+} from '../../services/slices/authSlice';
 import { fetchIngredients } from '../../services/slices/ingredientsSlice';
 
 type TProtectedRouteProps = {
@@ -36,8 +42,13 @@ const ProtectedRoute: FC<TProtectedRouteProps> = ({
   children
 }) => {
   const location = useLocation();
-  const isAuth = false;
-  const from = location.state?.from || '/';
+  const isAuth = useSelector(selectIsAuthenticated);
+  const isAuthChecked = useSelector(selectIsAuthChecked);
+  const from = location.state?.from?.pathname || '/';
+
+  if (!isAuthChecked) {
+    return <Preloader />;
+  }
 
   if (onlyUnAuth && isAuth) {
     return <Navigate to={from} replace />;
@@ -58,6 +69,7 @@ const AppRoutes: FC = () => {
 
   useEffect(() => {
     dispatch(fetchIngredients());
+    dispatch(checkUserAuth());
   }, [dispatch]);
 
   const closeModal = () => {
