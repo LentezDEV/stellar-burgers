@@ -15,10 +15,7 @@ export const BurgerConstructorElementUI: FC<BurgerConstructorElementUIProps> =
       handleMoveDown,
       handleClose
     }) => (
-      <li
-        className={clsx(styles.element, 'mb-4 mr-2')}
-        data-testid='constructor-ingredient'
-      >
+      <li className={clsx(styles.element, 'mb-4 mr-2')}>
         <MoveButton
           handleMoveDown={handleMoveDown}
           handleMoveUp={handleMoveUp}
